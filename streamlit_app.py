@@ -1,56 +1,96 @@
 import streamlit as st
-from openai import OpenAI
+import requests
+import json
 
-# Show title and description.
 st.title("💬 Chatbot")
 st.write(
-    "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
+    "This is a bhikhmanga using [Groq](https://console.groq.com/) to chat with high-performance models like **Mixtral** or **LLaMA 3**.\n\n"
+    "Enter your **Groq API Key** to start chatting."
 )
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+groq_api_key = st.secrets.get("GROQ_API_KEY")
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
+if not groq_api_key:
+    st.error("Missing Groq API key. Please add it to .streamlit/secrets.toml.")
+    st.stop()
 
-    # Create a session state variable to store the chat messages. This ensures that the
-    # messages persist across reruns.
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+model_catalog = {
+    "🦙 LLaMA 3.3 70B (Versatile)": "llama-3.3-70b-versatile",
+    "🦙 LLaMA 3.1 8B (Instant)": "llama-3.1-8b-instant",
+    "🛡️ LLaMA Guard 3 8B": "llama-guard-3-8b",
+    "🦙 LLaMA 3 70B": "llama3-70b-8192",
+    "🦙 LLaMA 3 8B": "llama3-8b-8192",
+    "🧠 Mixtral 8x7B (MoE)": "mixtral-8x7b-32768",
+    "🔸 Gemma 2 9B IT": "gemma2-9b-it",
+    "🌍 Distil-Whisper Large V3 EN": "distil-whisper-large-v3-en",
+    "🗣️ Whisper Large V3": "whisper-large-v3",
+    "⚡ Whisper Large V3 Turbo": "whisper-large-v3-turbo",
+    "🌠 Qwen QWQ 32B": "qwen-qwq-32b",
+    "💡 DeepSeek (LLaMA 70B Distilled)": "deepseek-r1-distill-llama-70b",
+    "🔧 Allam 2 7B": "allam-2-7b",
+    "🧪 LLaMA 4 Maverick 17B (Preview)": "meta-llama/llama-4-maverick-17b-128e-instruct",
+    "🧪 LLaMA 4 Scout 17B (Preview)": "meta-llama/llama-4-scout-17b-16e-instruct",
+}
 
-    # Display the existing chat messages via `st.chat_message`.
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+st.subheader("🧠 Model Selection")
+friendly_model = st.selectbox("Choose a model:", list(model_catalog.keys()))
+model = model_catalog[friendly_model]
+st.caption(f"Model ID: `{model}`")
 
-    # Create a chat input field to allow the user to enter a message. This will display
-    # automatically at the bottom of the page.
-    if prompt := st.chat_input("What is up?"):
+st.subheader("🎛️ Generation Settings")
 
-        # Store and display the current prompt.
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+temperature = st.slider("Temperature", 0.0, 1.5, 0.7, 0.05)
+top_p = st.slider("Top-p (nucleus sampling)", 0.0, 1.0, 1.0, 0.05)
+max_tokens = st.slider("Max tokens in response", 256, 8192, 1024, step=64)
 
-        # Generate a response using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
+if "messages" not in st.session_state:
+    st.session_state.messages = [{"role": "system", "content": "You are a helpful assistant."}]
+
+for message in st.session_state.messages[1:]:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+if prompt := st.chat_input("What would you like to ask?"):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    headers = {
+        "Authorization": f"Bearer {groq_api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+    "model": model,
+    "messages": st.session_state.messages,
+    "temperature": temperature,
+    "top_p": top_p,
+    "max_tokens": max_tokens,
+    "stream": True
+}
+
+    assistant_response = ""
+    with st.chat_message("assistant"):
+        response_container = st.empty()
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            stream=True
         )
 
-        # Stream the response to the chat using `st.write_stream`, then store it in 
-        # session state.
-        with st.chat_message("assistant"):
-            response = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        for line in response.iter_lines():
+            if line:
+                if line.startswith(b"data: "):
+                    line = line[6:]
+                if line == b"[DONE]":
+                    break
+                try:
+                    data = json.loads(line.decode("utf-8"))
+                    delta = data["choices"][0]["delta"].get("content", "")
+                    assistant_response += delta
+                    response_container.markdown(assistant_response + "▌")
+                except Exception as e:
+                    continue
+        response_container.markdown(assistant_response)
+
+    st.session_state.messages.append({"role": "assistant", "content": assistant_response})

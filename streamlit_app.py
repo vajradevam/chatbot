@@ -16,19 +16,12 @@ if not groq_api_key:
 model_catalog = {
     "🦙 LLaMA 3.3 70B (Versatile)": "llama-3.3-70b-versatile",
     "🦙 LLaMA 3.1 8B (Instant)": "llama-3.1-8b-instant",
-    "🛡️ LLaMA Guard 3 8B": "llama-guard-3-8b",
     "🦙 LLaMA 3 70B": "llama3-70b-8192",
     "🦙 LLaMA 3 8B": "llama3-8b-8192",
-    "🧠 Mixtral 8x7B (MoE)": "mixtral-8x7b-32768",
     "🔸 Gemma 2 9B IT": "gemma2-9b-it",
-    "🌍 Distil-Whisper Large V3 EN": "distil-whisper-large-v3-en",
-    "🗣️ Whisper Large V3": "whisper-large-v3",
-    "⚡ Whisper Large V3 Turbo": "whisper-large-v3-turbo",
     "🌠 Qwen QWQ 32B": "qwen-qwq-32b",
     "💡 DeepSeek (LLaMA 70B Distilled)": "deepseek-r1-distill-llama-70b",
     "🔧 Allam 2 7B": "allam-2-7b",
-    "🧪 LLaMA 4 Maverick 17B (Preview)": "meta-llama/llama-4-maverick-17b-128e-instruct",
-    "🧪 LLaMA 4 Scout 17B (Preview)": "meta-llama/llama-4-scout-17b-16e-instruct",
 }
 
 st.subheader("🧠 Model Selection")

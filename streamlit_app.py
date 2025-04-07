@@ -5,7 +5,6 @@ import json
 st.title("💬 Chatbot")
 st.write(
     "This is a bhikhmanga using [Groq](https://console.groq.com/) to chat with high-performance models like **Mixtral** or **LLaMA 3**.\n\n"
-    "Enter your **Groq API Key** to start chatting."
 )
 
 groq_api_key = st.secrets.get("GROQ_API_KEY")
